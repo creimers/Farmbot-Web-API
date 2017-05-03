@@ -1,25 +1,33 @@
 module Sequences
   class Update < Mutations::Command
-    using MongoidRefinements
+    include CeleryScriptValidators
 
     required do
-      model :user, class: User
+      model :device, class: Device
       model :sequence, class: Sequence
     end
 
     optional do
+      duck :body, methods: [:[], :[]=, :each, :map]
       string :name
       string :color, in: Sequence::COLORS
-      array :steps
     end
 
     def validate
-      add_error(:steps, :empty, "Can't be blank") if steps == []
-      raise Errors::Forbidden unless sequence.device.users.include?(user)
+      validate_sequence
+      raise Errors::Forbidden unless device.sequences.include?(sequence)
     end
 
     def execute
-      update_attributes(sequence, inputs.except(:user, :sequence, :_id))
+      ActiveRecord::Base.transaction do
+        sequence.args["is_outdated"] = false
+        sequence.update_attributes!(inputs.except(:sequence, :device))
+        reload_dependencies(sequence)
+      end
+      sequence
+    rescue ActiveRecord::RecordInvalid => e
+      m = (e.try(:message) || "Unknown validation issues.")
+      add_error :other, :unknown, m
     end
   end
 end

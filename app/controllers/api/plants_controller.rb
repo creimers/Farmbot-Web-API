@@ -6,25 +6,31 @@ module Api
     end
 
     def create
-      mutate Plants::Create.run(params, device_params)
+      mutate Plants::Create.run(params.as_json, device_params)
+    end
+
+    def update
+      mutate Plants::Update.run(params.as_json,
+                                { plant: plant },
+                                device_params)
     end
 
     def destroy
-      if (plant.device == current_device) && plant.destroy
-        render nothing: true
-      else
-        raise Errors::Forbidden, "Not your Plant object."
-      end
+      render json: plant.destroy! && ""
     end
 
     private
+
+    def plants
+      Plant.where(device_params)
+    end
 
     def device_params
       @device_params ||= {device: current_device}
     end
 
     def plant
-      @plant ||= Plant.find(params[:id])
+      @plant ||= plants.find(params[:id])
     end
   end
 end

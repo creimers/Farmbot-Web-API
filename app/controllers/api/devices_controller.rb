@@ -5,39 +5,30 @@ module Api
 
     # GET /api/device
     def show
-      current_device
-        .if_null { create }
-        .if_not_null { render json: current_device }
-        # .if_null { render json: {error: "add device to account"}, status: 404 }
+      render json: current_device
     end
 
     # POST /api/device
     def create
-      mutate Devices::Create.run(device_params, user: current_user)
+      mutate Devices::Create.run(params.as_json, user: current_user)
     end
 
     # PATCH/PUT /api/device
     def update
-      # Because of the way bots are shared, there is no true 'update' action.
-      # Just a creation/reasignment of bots based on UUID / Token.
-      create
+      mutate Devices::Update.run(params.as_json, device: current_device)
     end
 
     # DELETE /api/devices/1
     def destroy
-      if current_device.users.include?(current_user)
-        current_device.destroy
-        render nothing: true, status: 204
-      end
+      Devices::Destroy.run!(user: current_user, device: current_device)
+      render json: "", status: 204
     end
 
     private
 
       # Only allow a trusted parameter "white list" through.
       def device_params
-        { name:  params[:name]  || Haikunator.haikunate(99),
-          uuid:  params[:uuid]  || SecureRandom.uuid,
-          token: params[:token] || SecureRandom.hex }
+        { name:  params[:name] }
       end
   end
 end

@@ -1,5 +1,6 @@
-require 'codeclimate-test-reporter'
-CodeClimate::TestReporter.start
+ENV['MQTT_HOST'] = "blooper.io"
+ENV['OS_UPDATE_SERVER'] = "http://blah.com"
+ENV['FW_UPDATE_SERVER'] = "http://test.com"
 require 'simplecov'
 #Ignore anything with the word 'spec' in it. No need to test your tests.
 SimpleCov.start do
@@ -11,23 +12,9 @@ require 'pry'
 ENV['RAILS_ENV'] ||= 'test'
 require File.expand_path('../../config/environment', __FILE__)
 require 'rspec/rails'
-require 'capybara/rails'
-require 'capybara/rspec'
-require 'features/helpers'
-# require 'capybara/poltergeist'
-# Capybara.javascript_driver = :poltergeist
-Capybara.register_driver :poltergeist do |app|
-  # Capybara::Poltergeist::Driver.new(app, phantomjs: Phantomjs.path)
-  Capybara::Poltergeist::Driver.new(app, timeout: 300)
-  Capybara::Poltergeist::Driver.new(app, js_errors: true)
-end
-# Requires supporting ruby files with custom matchers and macros, etc, in
-# spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are
-# run as spec files by default. This means that files in spec/support that end
-# in _spec.rb will both be required and run as specs, causing the specs to be
-# run twice. It is recommended that you do not name files matching this glob to
-# end with _spec.rb. You can configure this pattern with with the --pattern
-# option on the command line or in ~/.rspec, .rspec or `.rspec-local`.
+require_relative './stuff'
+require_relative './doc_gen'
+
 Dir[Rails.root.join('spec/support/**/*.rb')].each { |f| require f }
 
 SmarfDoc.config do |c|
@@ -35,25 +22,36 @@ SmarfDoc.config do |c|
   c.output_file   = 'api_docs.md'
 end
 
+require 'database_cleaner'
+DatabaseCleaner.strategy = :truncation
+# then, whenever you need to clean the DB
+DatabaseCleaner.clean
+
 RSpec.configure do |config|
+  config.color = true
+  config.fail_fast = 1
+  config.backtrace_exclusion_patterns = [/gems/]
 
   config.include Helpers
   config.infer_spec_type_from_file_location!
   config.order = 'random'
 
-  if ENV['docs']
+  if ENV['DOCS']
     config.after(:each, type: :controller) do
+      DocGen.add(request)
       SmarfDoc.run!(request, response)
     end
-  end
-  config.after(:suite) { SmarfDoc.finish! }
 
-  config.after do
-    Mongoid.purge!
+    config.after(:suite) do
+      DocGen.finish!
+      SmarfDoc.finish!
+    end
   end
 end
 
-# Moped was making the test output buffer look ugly every time the database was
-# purged. These settings stop that.
-Mongoid.logger.level = Logger::WARN
-Mongo::Logger.logger.level = Logger::WARN
+# Reassign constants without getting a bunch of warnings to STDOUT.
+# This is just for testing purposes, so NBD.
+def const_reassign(target, const, value)
+  target.send(:remove_const, const)
+  target.const_set(const, value)
+end

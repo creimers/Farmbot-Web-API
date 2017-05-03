@@ -1,5 +1,7 @@
 module Users
   class Create < Mutations::Command
+    include Auth::ConsentHelpers
+
     required do
       string :name
       string :email
@@ -7,23 +9,29 @@ module Users
       string :password_confirmation
     end
 
+    optional do
+      boolean :agree_to_terms
+    end
+
     def validate
+      maybe_validate_tos
+      email.downcase!
+      add_error :email, :*, 'Already registered' if User.find_by(email: email)
       if password != password_confirmation
         add_error :password, :*, 'Password and confirmation do not match.'
       end
     end
 
     def execute
-      resp = {}
-
-      resp[:user]  = User.create!(email:                 email,
-                                  password:              password,
-                                  password_confirmation: password_confirmation,
-                                  name:                  name)
-
-      resp.merge!(Auth::CreateToken.run!(email:   email,
-                                         password: password,
-                                         host: "http://localhost:3000"))
+      params = { email:                 email,
+                 password:              password,
+                 password_confirmation: password_confirmation,
+                 name:                  name }
+      params[:agreed_to_terms_at] = Time.now if User::ENFORCE_TOS
+      user   = User.create!(params)
+      device = Devices::Create.run!(user: user)
+      UserMailer.welcome_email(user).deliver_later
+      {message: "Check your email!"}
     end
   end
 end

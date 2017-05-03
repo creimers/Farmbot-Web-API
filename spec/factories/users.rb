@@ -6,6 +6,9 @@ FactoryGirl.define do
     name { Faker::Name.name }
     email { Faker::Internet.email }
     password { Faker::Internet.password(8) }
-    after(:create) { |user| user.device ||= FactoryGirl.create(:device) }
+    verified_at { Time.now }
+    after(:create) do |user|
+      user.device ||= Devices::Create.run!(user: resp[:user])
+    end
   end
 end

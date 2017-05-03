@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Api::DevicesController do
 
-  include Devise::TestHelpers
+  include Devise::Test::ControllerHelpers
 
   describe '#destroy' do
 
@@ -11,9 +11,9 @@ describe Api::DevicesController do
     it 'destroys a Device' do
       sign_in user
       old_bot = user.device
-      delete :destroy, id: user.device.id, fromat: :json
+      delete :destroy, params: { id: user.device.id }
       user.reload
-      expect(user.device._id).not_to eq(old_bot._id)
+      expect(user.device.id).not_to eq(old_bot.id)
       expect(response.status).to eq(204)
     end
   end

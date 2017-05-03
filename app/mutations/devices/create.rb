@@ -1,24 +1,35 @@
 module Devices
   class Create < Mutations::Command
-    using MongoidRefinements
+    using LegacyRefinementsModule
 
     required do
       model :user, class: User
-      string :uuid
-      string :token
     end
 
     optional do
-      string :name, default: nil
+      string :name
+      string :webcam_url
     end
 
     def execute
-      inputs["name"] ||= Haikunator.haikunate(99)
-      dev = Device.find_or_initialize_by(uuid: uuid, token: token)
-      if update_attributes(dev, inputs.except(:user))
-        user.update_attributes(device: dev)
+      merge_default_values
+      device = Device.create!({name: random_name}.merge(inputs.except(:user)))
+      ActiveRecord::Base.transaction do
+        old_device = user.device
+        user.update_attributes!(device_id: device.id) # Detach from old one.
+        # Remove userless devices.
+        old_device.destroy! if old_device && device.users.count < 1
       end
-      dev
+      device
+    end
+  private
+
+    def merge_default_values
+      inputs[:name]  ||= random_name
+    end
+
+    def random_name
+      Haikunator.haikunate(1000)
     end
   end
 end

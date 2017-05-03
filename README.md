@@ -1,49 +1,67 @@
 [![Code Climate](https://codeclimate.com/github/FarmBot/farmbot-web-app/badges/gpa.svg)](https://codeclimate.com/github/FarmBot/farmbot-web-app)
 [![Test Coverage](https://codeclimate.com/github/FarmBot/farmbot-web-app/badges/coverage.svg)](https://codeclimate.com/github/FarmBot/farmbot-web-app)
-[![Build Status](https://travis-ci.org/FarmBot/farmbot-web-app.svg)](https://travis-ci.org/FarmBot/farmbot-web-app)
 
 # Do I need this?
 
-This repository is intended for *software developers* who wish to modify the [Farmbot Web App](http://my.farmbot.io/). **If you are not a developer**, you are highly encouraged to use [the publicly available web app](http://my.farmbot.io/).
+This repository is intended for *software developers* who wish to modify the [Farmbot Web App](http://my.farmbot.io/). **If you are not a developer**, you are highly encouraged to use [the publicly available web app](http://my.farmbot.io/). Running a server is a non-trivial task which will require an intermediate background in Ruby, SQL and Linux system administration.
 
 If you are a developer interested in contributing or would like to provision your own server, you are in the right place.
 
 # Farmbot Web API
 
-**[LATEST STABLE VERSION IS HERE](https://github.com/FarmBot/Farmbot-Web-API/tree/a3762b25dab757d43623de3ed67c3c2d56dccb6c)** :star: :star: :star:
+**[LATEST STABLE VERSION IS HERE](https://github.com/FarmBot/Farmbot-Web-API/releases)** :star: :star: :star:
 
-This Repo is RESTful JSON API for Farmbot. This includes things like storage of user data, plant data, authorization tokens and a variety of other resources.
+This Repo is the RESTful JSON API for Farmbot. This includes things like storage of user data, plant data, authorization tokens and a variety of other resources.
 
 The key responsibility of the API is *information and permissions management*. This should not be confused with device control, which is done via [MQTT](https://github.com/FarmBot/mqtt-gateway).
 
-# Developer setup
+# API Documentation
 
- 0. `git clone git@github.com:FarmBot/farmbot-web-api.git`
- 0. `cd farmbot-web-api`
- 0. [Install MongoDB](http://docs.mongodb.org/manual/tutorial/install-mongodb-on-os-x/)
- 0. Start Mongo if you have not already done so. (typically via the `mongod` command)
+For a list of example API requests and responses, see our [reference documentation](https://gist.github.com/RickCarlino/5f3d885e88d6e15b2ffe1763cc2a750a).
+
+# Developer Setup
+
+## Prerequisites
+
+Your machine will need the following:
+
+ 0. [Ruby 2.3.3](http://rvm.io/rvm/install)
+ 1. [ImageMagick](https://www.imagemagick.org/script/index.php) (`brew install imagemagick` or `sudo apt-get install imagemagick`)
+
+### Setup
+ 0. `git clone https://github.com/FarmBot/Farmbot-Web-API`
+ 0. `cd Farmbot-Web-API`
+ 0. [Install `libpq-dev` and `postgresql`](http://stackoverflow.com/questions/6040583/cant-find-the-libpq-fe-h-header-when-trying-to-install-pg-gem/6040822#6040822)
  0. `bundle install`
- 0. `MQTT_HOST=your_mqtt_server_domain:1883 rails s`
- 0. Go to `http://localhost:3000`
+ 0. Copy `config/database.example.yml` to `config/database.yml`. In GNU/Linux or Mac: `mv config/database.example.yml config/database.yml`. **Please read the file and replace the values with real world values.**.
+ 0. Give permission to create a database*
+ 0. `rake db:create:all db:migrate db:seed`
+ 0. (optional) Verify installation with `RAILS_ENV=test rake db:create db:migrate && rspec spec`.
+ 0. `MQTT_HOST=your_mqtt_server_domain rails s`
+ 0. (REQUIRES NODE JS > v6) Run `./install_frontend.sh` to install the latest frontend app. You may also run the frontend on a seperate server. See [frontend repository](https://github.com/FarmBot/farmbot-web-frontend) for details.
+ 0. Open [localhost:3000](http://localhost:3000).
+ 0. [Raise an issue](https://github.com/FarmBot/Farmbot-Web-API/issues/new?title=Installation%20Failure) if you hit problems with any of these steps.
+
+\*Give permission to `user` to create database:
+```
+sudo -u postgres createuser user
+sudo -u postgres psql
+ALTER USER user WITH SUPERUSER;
+```
 
 # Provisioning Your Own with Dokku
 
-0. Create a fresh Ubuntu 14 server with Dokku (or just use DigitalOcean)
-0. [Upgrade to the latest version of Dokku](https://github.com/dokku/dokku/blob/master/docs/upgrading.md) (especially if you are on DigitalOcean- their version is out of date)
-0. Install dokku-haproxy plugin: `ssh root@YOUR_SERVER dokku plugin:install https://github.com/256dpi/dokku-haproxy.git`
-0. Deploy: `git push dokku@YOUR_SERVER:mqtt`
-0. Point to correct host/port: `ssh dokku@MQTT_SERVER config:set mqtt PORT=3002 DOKKU_NGINX_PORT=3002 WEB_APP_URL=WEBAPP_URL_HERE`
-0. Expose MQTT port: `ssh dokku@MQTT_SERVER ports:add mqtt 1883 web 1883`
+Please see `deployment.md`.
 
 # Config Settings (important)
 
-Here are some of the configuration options you must set when provisioning a new server:
+Your server won't run without setting ENV variables first.
 
- * **Encryption keys**: Encryption keys will be autogenerated if not present. They can be reset using `rake keys:generate`. If `ENV['RSA_KEY']` is set, it will be used in place of the `*.pem` files. Useful for environments like Heroku, where file system access is not allowed.
- * `ENV['MONGO_URL']`: URL pointing to running MongoDB instance.
- * `ENV['DEVISE_SECRET']`: Used for devise. Use `rake secret` to generate a new value.
- * `ENV['MQTT_HOST']`: Host (no port or slashes or anything) of running [MQTT gateway](https://github.com/FarmBot/mqtt-gateway). This is required so that Farmbot can know where to connect when given an authorization token.
- * `ENV['JS_FILE_URL']`: URL pointing to the [Farmbot Frontend](https://github.com/FarmBot/farmbot-web-frontend) `bundle.js` file. This is what gets injected into the `<script>` tag when the user visits `/app`. 
+You can accomplish this by setting the ENV variables directly from your shell / server management tool or by writing an `application.yml` file.
+
+See `config/application.example.yml` for a list of all the variables that must be set.
+
+**Encryption keys**: Encryption keys will be autogenerated if not present. They can be reset using `rake keys:generate`. If `ENV['RSA_KEY']` is set, it will be used in place of the `*.pem` files. Useful for environments like Heroku, where file system access is not allowed.
 
 **We can't fix issues we don't know about.** Please submit an issue if you are having trouble installing on your local machine.
 
@@ -78,7 +96,7 @@ Here's what a response looks like when you request a token:
 }
 ```
 
-**Important:** The response is provided as JSON for human readability. For you `Authorization` header, you will only be using `data.token.encoded`. In this example, it's the string starting with `eyJ0eXAiOiJ...`
+**Important:** The response is provided as JSON for human readability. For your `Authorization` header, you will only be using `data.token.encoded`. In this example, it's the string starting with `eyJ0eXAiOiJ...`
 
 ## Via CURL
 
@@ -100,17 +118,15 @@ $.ajax({
     url: "https://my.farmbot.io/api/tokens",
     type: "POST",
     data: JSON.stringify({user: {email: 'admin@admin.com', password: 'password123'}}),
-    contentType: "application/json"
-})
-.then(function(data){
-  // You can now use your token:
-  var MY_SHINY_TOKEN = data.token.encoded;
+    contentType: "application/json",
+    success: function (data) {
+                 // You can now use your token:
+                 var MY_SHINY_TOKEN = data.token.encoded;
+             }
 });
 ```
 
-# How to Contribute
 
- * Pull requests are always appreciated, but *please*
-   * Write tests.
-   * Follow the [Ruby Community Style Guide](https://github.com/bbatsov/ruby-style-guide).
-   * Raise issues. We love to know about issues. Even the issues you think are only relevant to your setup. Just submit issues if you have issues.
+# Want to Help?
+
+[Low Hanging Fruit](https://github.com/FarmBot/Farmbot-Web-API/search?utf8=%E2%9C%93&q=todo). [Raise an issue](https://github.com/FarmBot/Farmbot-Web-API/issues/new?title=Question%20about%20a%20TODO) if you have any questions.

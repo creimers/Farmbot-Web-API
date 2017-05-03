@@ -1,3 +1,3 @@
 class DeviceSerializer < ActiveModel::Serializer
-  attributes :_id, :name, :uuid, :token
+  attributes :id, :name, :webcam_url
 end

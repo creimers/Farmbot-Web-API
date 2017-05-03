@@ -1,0 +1,22 @@
+{
+  "name": "farmbot_api",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "echo 'starting...'",
+    "heroku-postbuild": "./install_frontend.sh 2>&1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rickcarlino/farmbot-web-app.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rickcarlino/farmbot-web-app/issues"
+  },
+  "homepage": "https://github.com/rickcarlino/farmbot-web-app#readme",
+  "dependencies": {
+    "farmbot-inc": "0.0.1"
+  }
+}

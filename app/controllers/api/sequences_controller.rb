@@ -1,10 +1,13 @@
 module Api
   class SequencesController < Api::AbstractController
+    before_action :authorize_user, except: [:index, :create]
+    before_action :clean_expired_farm_events, only: [:destroy]
 
     def index
       query = { device: current_device }
-      query.merge!(schedule_id: params[:schedule_id]) if params[:schedule_id]
-      render json: Sequence.where(query)
+      query.merge!(farm_event_id: params[:farm_event_id]) if params[:farm_event_id]
+      sequences = Sequence.where(query)
+      render json: sequences
     end
 
     def show
@@ -12,30 +15,35 @@ module Api
     end
 
     def create
-      mutate Sequences::Create.run(params, device: current_device)
+      mutate Sequences::Create.run(sequence_params, device: current_device)
     end
 
     def update
-      mutate Sequences::Update.run(params[:sequence],
-                                   user: current_user,
-                                   steps: params[:steps],
+      mutate Sequences::Update.run(sequence_params, # params[:sequence].as_json,
+                                   device: current_device,
                                    sequence: sequence)
     end
 
     def destroy
-      # HEY YOU!! If you touch this again, add a mutation. This is the most
-      # complexity I would like to see in one controller action.
-      if (sequence.device == current_device) && sequence.destroy
-        render nothing: true
-      else
-        raise Errors::Forbidden, "Not your Sequence object."
-      end
+      mutate Sequences::Delete.run(sequence: sequence, device: current_device)
     end
 
     private
 
+    def maybe_migrate(sequences)
+    end
+
+    def sequence_params
+        @sequence_params ||= raw_json[:sequence] || raw_json || {}
+    end
+
     def sequence
       @sequence ||= Sequence.find(params[:id])
+    end
+
+    def authorize_user
+      raise Errors::Forbidden,
+            "Not your Sequence object." if sequence.device != current_device
     end
   end
 end
