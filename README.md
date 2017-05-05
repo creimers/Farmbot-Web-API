@@ -49,6 +49,19 @@ sudo -u postgres psql
 ALTER USER user WITH SUPERUSER;
 ```
 
+## Docker 🐳
+* requires [docker](https://docs.docker.com/engine/installation/)
+
+### Setup
+0. `cp ./config/application.docker.yml ./config/application.yml`
+0. `cp ./config/database.docker.yml ./config/database.yml`
+
+0. `docker-compose build`
+0. `docker-compose run web_api rake db:migrate db:seed`
+
+### Run local server
+* `docker-compose run -p 3000:3000 web_api bundle exec rails s -p 3000 -b '0.0.0.0'`
+
 # Provisioning Your Own with Dokku
 
 Please see `deployment.md`.
