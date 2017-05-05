@@ -1,0 +1,18 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  database: farmbot
+  pool: 5
+
+development:
+  database: farmbot
+  <<: *default
+
+test:
+  database: farmbot_test
+  <<: *default
+
+production:
+  database: farmbot
+  <<: *default
+  
