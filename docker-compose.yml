@@ -1,0 +1,30 @@
+version: '2'
+
+services:
+
+  postgres:
+    image: postgres:9.5
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pw
+      POSTGRES_DB: farmbot
+
+  web_api:
+    build: .
+    command: bundle exec rails s -p 3000 -b '0.0.0.0'
+    volumes:
+      - .:/app
+      - ./config/database.docker.yml:/app/config/database.yml
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+
+  mqtt:
+    build:
+      context: https://github.com/creimers/mqtt-gateway.git
+    depends_on:
+      - web_api
+    environment:
+      WEB_API_URL: http://web_api:3000
+    entrypoint: ["./wait-for-it.sh", "web_api:80", "--", "npm", "start"]
