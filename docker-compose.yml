@@ -27,4 +27,9 @@ services:
       - web_api
     environment:
       WEB_API_URL: http://web_api:3000
+    ports:
+      - "80:3002"
+      - "443:443"
+      - "3002:3002"
+      - "1883:1883"
     entrypoint: ["./wait-for-it.sh", "web_api:80", "--", "npm", "start"]
