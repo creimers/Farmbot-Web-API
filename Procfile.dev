@@ -1,0 +1,3 @@
+api: rails s -e development -p 3000 -b 0.0.0.0
+wrk: rake jobs:work
+fe: npm run webpack

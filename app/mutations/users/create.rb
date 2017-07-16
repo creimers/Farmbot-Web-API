@@ -1,5 +1,6 @@
 module Users
   class Create < Mutations::Command
+    include Skylight::Helpers
     include Auth::ConsentHelpers
 
     required do
@@ -13,6 +14,7 @@ module Users
       boolean :agree_to_terms
     end
 
+    instrument_method
     def validate
       maybe_validate_tos
       email.downcase!
@@ -22,6 +24,7 @@ module Users
       end
     end
 
+    instrument_method
     def execute
       params = { email:                 email,
                  password:              password,
@@ -30,7 +33,9 @@ module Users
       params[:agreed_to_terms_at] = Time.now if User::ENFORCE_TOS
       user   = User.create!(params)
       device = Devices::Create.run!(user: user)
-      UserMailer.welcome_email(user).deliver_later
+      UserMailer
+        .welcome_email(user)
+        .deliver_later unless User::SKIP_EMAIL_VALIDATION
       {message: "Check your email!"}
     end
   end

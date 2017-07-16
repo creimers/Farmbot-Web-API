@@ -1,16 +1,18 @@
-<% if response.success? %>
-# <%= request.method %> <%= request.path.first(45) %>
+<% if (response.success? || note.present?) %>
+# <%= response.success? ? "" : "(NOT OK)" %> <%= request.pretty_url %>
 <% if note.present? %>
-**Notes: ** <%= note %>
+**Notes:** <%= note %>
 <% end %>
-<% if request.params.except(:controller, :action, :format, :id).keys.length > 0 %>
+<% if (request.has_params? || request.has_body?) %>
+<% if request.display_body.length > 4 %>
 ### Request
 
 ```
 <%=
-  JSON.pretty_generate(request.params.except(:controller, :action, :format, :id, :user_id, :device_id))
+  request.display_body
 %>
 ```
+<% end %>
 <% end %>
 ### Response
 

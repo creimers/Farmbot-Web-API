@@ -1,12 +1,11 @@
 module Devices
   class Create < Mutations::Command
-    using LegacyRefinementsModule
-
     required do
       model :user, class: User
     end
 
     optional do
+      string :timezone
       string :name
       string :webcam_url
     end

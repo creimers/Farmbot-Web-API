@@ -76,6 +76,7 @@ describe Api::UsersController do
     end
 
     it 'creates a new user' do
+      empty_mail_bag
       email = Faker::Internet.email
       original_count = User.count
       params =  { password_confirmation: "Password123",
@@ -84,16 +85,30 @@ describe Api::UsersController do
                   name:                  "Frank" }
       old_email_count = ActionMailer::Base.deliveries.length
       post :create, params: params
-      sleep 0.75 # Mail deliveries occur in background thread.
-      expect(ActionMailer::Base.deliveries.length).to be > old_email_count
-      msg = ActionMailer::Base.deliveries.last
-      expect(msg.to.first).to eq(email)
-      expect(User.count).to eq(original_count + 1)
       user = User.last
-      expect(user.name).to eq("Frank")
-      expect(user.email).to eq(email)
-      expect(msg.body.parts.first.to_s).to include(user.verification_token)
-      expect(user.valid_password?('Password123')).to be_truthy
+      if User::SKIP_EMAIL_VALIDATION
+        puts <<~HEREDOC
+
+          MAYBE A WARNING:
+          YOU HAVE CHOSEN TO SKIP TESTS FOR USER VERIFICATION.
+
+          If you are a self hosted user that does not want email functionality,
+          you can ignore this message.
+
+          If you *do* want to use email in your farmbot setup, consider this a
+          failure.
+
+        HEREDOC
+      else
+        expect(ActionMailer::Base.deliveries.length).to be > old_email_count
+        msg = ActionMailer::Base.deliveries.last
+        expect(msg.to.first).to eq(email)
+        expect(msg.body.parts.first.to_s).to include(user.verification_token)
+        expect(User.count).to eq(original_count + 1)
+        expect(user.name).to eq("Frank")
+        expect(user.email).to eq(email)
+        expect(user.valid_password?('Password123')).to be_truthy
+      end
     end
 
     it 'handles password confirmation mismatch' do

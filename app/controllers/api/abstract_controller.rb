@@ -11,8 +11,20 @@ module Api
     after_action :skip_set_cookies_header
     rescue_from(JWT::VerificationError) { |e| auth_err }
 
+    rescue_from(ActionDispatch::Http::Parameters::ParseError) do
+      sorry "That request was not valid JSON. Consider checking the request " +
+            "body with a JSON validator.."
+    end
+
+    rescue_from(ActiveRecord::ValueTooLong) do
+      sorry "Please use reasonable lengths on string inputs", 422
+    end
     rescue_from Errors::Forbidden do |exc|
       sorry "You can't perform that action. #{exc.message}", 403
+    end
+
+    rescue_from OnlyJson do |e|
+      sorry "This is a JSON API. Please use _valid_ JSON.", 422
     end
 
     rescue_from Errors::NoBot do |exc|
@@ -31,6 +43,14 @@ module Api
       render json: {error: CONSENT_REQUIRED}, status: 451
     end
 
+    rescue_from ActionDispatch::ParamsParser::ParseError do |exc|
+      sorry "You have a typo in your JSON.", 422
+    end
+
+    rescue_from ActiveModel::RangeError do |_|
+      sorry "One of those numbers was too big/small. " +
+            "If you need larger numbers, let us know.", 422
+    end
 private
 
     def clean_expired_farm_events
@@ -121,16 +141,14 @@ private
       render json: {error: "Upgrade to latest FarmBot OS"}, status: 426
     end
 
-    EXPECTED_MAJOR = 3
-    EXPECTED_MINOR = 1
+    EXPECTED_VER = Gem::Version::new('4.0.0')
+
     def check_fbos_version
       # "FARMBOTOS/3.1.0 (RPI3) RPI3 ()"
-      ua = request.user_agent.upcase
+      ua = (request.user_agent || "").upcase
       if ua.include?("FARMBOTOS")
-        major, minor = ua.upcase.split("/").pop.split(".").first(2).map(&:to_i)
-        maj_ok = major >= EXPECTED_MAJOR
-        min_ok = minor >= EXPECTED_MINOR
-        bad_version unless maj_ok && min_ok
+        actual_version = Gem::Version::new(ua.upcase.split("/").last.split(" ").first)
+        bad_version unless actual_version >= EXPECTED_VER
       end
     end
   end

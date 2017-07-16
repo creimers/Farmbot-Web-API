@@ -1,22 +1,22 @@
 #!/bin/bash
-
+echo "=========   RUNNING install_frontend.sh"
 CURRENT_DIR=$(pwd)
-# Clone into a temp folder...
-rm -rf /tmp/farmbot_frontend
-mkdir /tmp/farmbot_frontend
-git clone https://github.com/farmbot/farmbot-web-frontend.git /tmp/farmbot_frontend
-cd /tmp/farmbot_frontend
+
 if [ "$NPM_ADDON" ]; then
-    echo "NPM ADD ON DETECTED... INSTALLING"
+    echo "=========   NPM ADD ON DETECTED... INSTALLING"
     npm install $NPM_ADDON --save 2>&1
 fi
-npm install 2>&1
+
+echo "=========   Running Yarn"
+yarn install 2>&1
+# https://github.com/yarnpkg/yarn/issues/1981
+npm rebuild node-sass
 # Make webpack executable and compile everything.
+echo "=========   Changing Webpack permissions"
 chmod +x node_modules/webpack/bin/webpack.js
+
+echo "=========   Running `npm run build`"
 npm run build 2>&1
 
-cd $CURRENT_DIR
 # Move it over to the rails /public directory and install deps
 mkdir public/ -p
-
-cp -R /tmp/farmbot_frontend/public/* public/ 

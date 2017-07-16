@@ -1,4 +1,5 @@
 require 'spec_helper'
+JSON_EXAMPLE = File.read("spec/controllers/api/logs/connor_fixture.json")
 
 describe Api::LogsController do
   include Devise::Test::ControllerHelpers
@@ -33,7 +34,7 @@ describe Api::LogsController do
     end
 
     it 'disallows blacklisted (sensitive) words in logs' do
-      Log.delete_all
+      Log.destroy_all
       stub = { meta: { x: 1, y: 2, z: 3, type: "info" },
                channels: ["toast"],
                message: "my password is foo123!" }
@@ -61,27 +62,30 @@ describe Api::LogsController do
            ].to_json,
            params: {format: :json}
       expect(response.status).to eq(200)
-      expect(Log.count).to eq(before_count + 3)
+      expect(before_count + 3).to eq(Log.count)
     end
 
     it 'does not bother saving `fun` logs' do
       sign_in user
+      Log.destroy_all
       before_count = Log.count
+      dispatch_before = LogDispatch.count
       post :create,
            body: [
             { meta: { x: 1, y: 2, z: 3, type: "info" },
               channels: ["toast"],
               message: "one" },
-            { meta: { x: 1, y: 2, z: 3, type: "fun" },
+            { meta: { x: 1, y: 2, z: 3, type: "fun" }, # Ignored
               channels: [],
               message: "two" },
             { meta: { x: 1, y: 2, z: 3, type: "info" },
-              channels: [],
+              channels: ["email"],
               message: "three" },
            ].to_json,
            params: {format: :json}
       expect(response.status).to eq(200)
-      expect(Log.count).to eq(before_count + 2)
+      expect(before_count + 2).to eq(Log.count)
+      expect(dispatch_before + 1).to eq(LogDispatch.count)
     end
 
     it 'Runs compaction when the logs pile up' do
@@ -105,6 +109,36 @@ describe Api::LogsController do
       expect(response.status).to eq(200)
       expect(user.device.reload.logs.count).to be < before
       expect(user.device.logs.count).to eq(0)
+    end
+
+    it 'delivers emails for logs marked as `email`' do
+      sign_in user
+      empty_mail_bag
+      before_count = LogDispatch.count
+      body         = { meta: { x: 1, y: 2, z: 3, type: "info" },
+                       channels: ["email"],
+                       message: "Heyoooo" }.to_json
+      post :create, body: body, params: {format: :json}
+      after_count = LogDispatch.count
+      expect(response.status).to eq(200)
+      expect(last_email).to be
+      expect(last_email.body.to_s).to include("Heyoooo")
+      expect(last_email.to).to include(user.email)
+      expect(before_count).to be < after_count
+      expect(LogDispatch.where(sent_at: nil).count).to eq(0)
+    end
+
+    it "batches multiple messages"
+
+    it "handles bug that Connor reported" do
+      sign_in user
+      empty_mail_bag
+      Log.destroy_all
+      LogDispatch.destroy_all
+      post :create,
+           body: JSON_EXAMPLE,
+           params: {format: :json}
+      expect(last_email).to eq(nil)
     end
   end
 end

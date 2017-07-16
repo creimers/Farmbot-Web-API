@@ -1,11 +1,14 @@
 unless Rails.env == "production"
+    POINT_COUNT             = 2 # 70
+    PLANT_COUNT             = 2 # 100
+    DATE_RANGE_LO           = 1..3
+    DATE_RANGE_HI           = 3..8
     ENV['MQTT_HOST']        = "blooper.io"
     ENV['OS_UPDATE_SERVER'] = "http://blah.com"
     ENV['FW_UPDATE_SERVER'] = "http://test.com"
-    ToolSlot.destroy_all
+    Point.destroy_all
     Device.destroy_all
     User.destroy_all
-    Point.destroy_all
     Users::Create.run!(name:                  "Administrator",
                        email:                 "notos@notos.com",
                        password:              "password123",
@@ -25,15 +28,20 @@ unless Rails.env == "production"
     Log.transaction do
       FactoryGirl.create_list(:log, 35, device: u.device)
     end
-    [ "http://i.imgur.com/XvFBGA4.jpg",
-      "http://i.imgur.com/XsFczCY.jpg" ].each do |url|
+    [ "https://via.placeholder.com/350x250?text=Image%20Zero",
+      "https://i.imgur.com/XvFBGA4.jpg",
+      "https://via.placeholder.com/350x250?text=Image%20Two",
+      "https://i.imgur.com/XsFczCY.jpg",
+      "https://via.placeholder.com/350x250?text=Image%20Four"
+    ].each do |url|
         Images::Create.run!(attachment_url: url,
                             device: u.device,
                             meta: {x: rand(40...970),
                                    y: rand(40...470),
                                    z: rand(1...300)})
     end
-    70.times do
+
+    PLANT_COUNT.times do
       Point.create(
         device: u.device,
         x: rand(40...970),
@@ -44,13 +52,15 @@ unless Rails.env == "production"
           openfarm_slug: ["tomato", "carrot", "radish", "garlic"].sample
         ))
     end
-    100.times do
+
+    POINT_COUNT.times do
       Point.create(
         device: u.device,
         x: rand(40...970) + rand(40...970),
         y: rand(40...470) + rand(40...470),
         z: 5,
         radius: (rand(1...150) + rand(1...150)) / 20,
+        pointer: GenericPointer.new(),
         meta: {
           created_by: "plant-detection",
           color: (Sequence::COLORS + [nil]).sample
@@ -78,15 +88,14 @@ unless Rails.env == "production"
                          ])
     Peripherals::Create.run!(device: u.device, pin: 13, label: "LED")
     2.times do
-      FarmEvents::Create.run!(
-        device: u.device,
-        start_time: Date.yesterday - [*(1..3)].sample.days,
-        end_time: Date.today + ([*(3..8)].sample).days,
-        time_unit: "daily",
-        repeat: [*(1..3)].sample,
-        executable_id: Sequence.where(device: u.device).order("RANDOM()").first.id,
-        executable_type: "Sequence"
-      )
+        FarmEvents::Create.run!(
+          device: u.device,
+          start_time: Time.now + 1.hour,
+          end_time: Date.today + ([*(DATE_RANGE_HI)].sample).days,
+          time_unit: "daily",
+          repeat: [*(DATE_RANGE_LO)].sample,
+          executable_id: Sequence.where(device: u.device).order("RANDOM()").first.id,
+          executable_type: "Sequence")
     end
 
     ts = ToolSlots::Create.run!(device: u.device,

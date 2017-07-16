@@ -7,7 +7,6 @@
 module CeleryScriptSettingsBag
   DIGITAL, ANALOG       = 0, 1
   ALLOWED_PIN_MODES     = [DIGITAL, ANALOG]
-  ALLOWED_VAR_TYPES     = %w(location)
   ALLOWED_RPC_NODES     = %w(home emergency_lock emergency_unlock read_status
                              sync check_updates power_off reboot toggle_pin
                              config_update calibrate execute move_absolute
@@ -21,14 +20,15 @@ module CeleryScriptSettingsBag
                              corpuses logs sequences farm_events
                              tool_slots tools points tokens users device)
   ALLOWED_MESSAGE_TYPES = %w(success busy warn error info fun)
-  ALLOWED_CHANNEL_NAMES = %w(ticker toast)
+  ALLOWED_CHANNEL_NAMES = %w(ticker toast email)
   ALLOWED_DATA_TYPES    = %w(string integer)
-  ALLOWED_OPS           = %w(< > is not)
+  ALLOWED_OPS           = %w(< > is not is_undefined)
   ALLOWED_AXIS          = %w(x y z all)
+  ALLOWED_LHS           = [*(0..69)].map{|x| "pin#{x}"}.concat(%w(x y z))
+  ALLOWED_POINTER_TYPE  = %w(GenericPointer ToolSlot Plant)
   STEPS                 = %w(move_absolute move_relative write_pin read_pin wait
-                             send_message execute _if execute_script take_photo)
-  ALLOWED_LHS           = %w(pin0 pin1 pin2 pin3 pin4 pin5 pin6 pin7 pin8 pin9
-                             pin10 pin11 pin12 pin13 x y z)
+                             send_message execute _if execute_script take_photo
+                             find_home)
   BAD_ALLOWED_PIN_MODES = '"%s" is not a valid pin_mode. Allowed values: %s'
   BAD_LHS               = 'Can not put "%s" into a left hand side (LHS) '\
                           'argument. Allowed values: %s'
@@ -39,23 +39,36 @@ module CeleryScriptSettingsBag
                           'Allowed values: %s'
   BAD_CHANNEL_NAME      = '"%s" is not a valid channel_name. Allowed values: %s'
   BAD_MESSAGE_TYPE      = '"%s" is not a valid message_type. Allowed values: %s'
+  BAD_MESSAGE           = "Messages must be between 1 and 300 characters"
   BAD_TOOL_ID           = 'Tool #%s does not exist.'
   BAD_PACKAGE           = '"%s" is not a valid package. Allowed values: %s'
   BAD_AXIS              = '"%s" is not a valid axis. Allowed values: %s'
-  BAD_VAR_TYPE          = '"%s" is not a valid type. Allowed values: %s'
+  BAD_POINTER_ID        = "Bad point ID: %s"
+  BAD_POINTER_TYPE      = '"%s" is not a type of point. Allowed values: %s'
+
   Corpus = CeleryScript::Corpus
       .new
-      .defineArg(:var_type,        [String]) do |node|
-        within(ALLOWED_VAR_TYPES, node) do |val|
-          BAD_VAR_TYPE % [val.to_s, ALLOWED_VAR_TYPES.inspect]
+      .defineArg(:pointer_id, [Integer]) do |node|
+        p_type = node&.parent&.args[:pointer_type]&.value
+        klass  = Point::POINTER_KINDS[p_type]
+        # Don't try to validate if `pointer_type` is wrong.
+        # That's a different respnsiblity.
+        if(klass)
+          bad_node = !klass.exists?(node.value)
+          node.invalidate!(BAD_POINTER_ID % node.value) if bad_node
         end
       end
-      .defineArg(:pin_mode,        [Fixnum]) do |node|
+      .defineArg(:pointer_type, [String]) do |node|
+        within(ALLOWED_POINTER_TYPE, node) do |val|
+          BAD_POINTER_TYPE % [val.to_s, ALLOWED_POINTER_TYPE.inspect]
+        end
+      end
+      .defineArg(:pin_mode, [Integer]) do |node|
         within(ALLOWED_PIN_MODES, node) do |val|
           BAD_ALLOWED_PIN_MODES % [val.to_s, ALLOWED_PIN_MODES.inspect]
         end
       end
-      .defineArg(:sequence_id, [Fixnum]) do |node|
+      .defineArg(:sequence_id, [Integer]) do |node|
         if (node.value == 0)
           node.invalidate!(NO_SUB_SEQ)
         else
@@ -83,7 +96,7 @@ module CeleryScriptSettingsBag
           BAD_MESSAGE_TYPE % [val.to_s, ALLOWED_MESSAGE_TYPES.inspect]
         end
       end
-      .defineArg(:tool_id,         [Fixnum]) do |node|
+      .defineArg(:tool_id,         [Integer]) do |node|
         node.invalidate!(BAD_TOOL_ID % node.value) if !Tool.exists?(node.value)
       end
       .defineArg(:package, [String]) do |node|
@@ -96,21 +109,26 @@ module CeleryScriptSettingsBag
           BAD_AXIS % [val.to_s, ALLOWED_AXIS.inspect]
         end
       end
-      .defineArg(:version,         [Fixnum])
-      .defineArg(:x,               [Fixnum])
-      .defineArg(:y,               [Fixnum])
-      .defineArg(:z,               [Fixnum])
-      .defineArg(:radius,          [Fixnum])
-      .defineArg(:speed,           [Fixnum])
-      .defineArg(:pin_number,      [Fixnum])
-      .defineArg(:pin_value,       [Fixnum])
-      .defineArg(:milliseconds,    [Fixnum])
-      .defineArg(:rhs,             [Fixnum])
-      .defineArg(:value,           [String, Fixnum, TrueClass, FalseClass])
+      .defineArg(:version,         [Integer])
+      .defineArg(:x,               [Integer])
+      .defineArg(:y,               [Integer])
+      .defineArg(:z,               [Integer])
+      .defineArg(:radius,          [Integer])
+      .defineArg(:speed,           [Integer])
+      .defineArg(:pin_number,      [Integer])
+      .defineArg(:pin_value,       [Integer])
+      .defineArg(:milliseconds,    [Integer])
+      .defineArg(:rhs,             [Integer])
+      .defineArg(:value,           [String, Integer, TrueClass, FalseClass])
       .defineArg(:label,           [String])
       .defineArg(:package,         [String])
-      .defineArg(:message,         [String])
-      .defineArg(:location,        [:tool, :coordinate])
+      .defineArg(:message,         [String]) do |node|
+        notString = !node.value.is_a?(String)
+        tooShort  = notString || node.value.length == 0
+        tooLong   = notString || node.value.length > 300
+        node.invalidate! BAD_MESSAGE if (tooShort || tooLong)
+      end
+      .defineArg(:location,        [:tool, :coordinate, :point])
       .defineArg(:offset,          [:coordinate])
       .defineArg(:_then,           [:execute, :nothing])
       .defineArg(:_else,           [:execute, :nothing])
@@ -129,7 +147,7 @@ module CeleryScriptSettingsBag
       .defineNode(:wait,           [:milliseconds])
       .defineNode(:send_message,   [:message, :message_type], [:channel])
       .defineNode(:execute,        [:sequence_id])
-      .defineNode(:_if,            [:lhs, :op, :rhs, :_then, :_else])
+      .defineNode(:_if,            [:lhs, :op, :rhs, :_then, :_else], [:pair])
       .defineNode(:sequence,          [:version], STEPS)
       .defineNode(:home,              [:speed, :axis], [])
       .defineNode(:find_home,         [:speed, :axis], [])
@@ -155,8 +173,7 @@ module CeleryScriptSettingsBag
       .defineNode(:add_point,         [:location], [:pair])
       .defineNode(:take_photo,        [], [])
       .defineNode(:data_update,       [:value], [:pair])
-      .defineNode(:variable,          [:var_type, :label], [])
-
+      .defineNode(:point,             [:pointer_type, :pointer_id], [])
   # Given an array of allowed values and a CeleryScript AST node, will DETERMINE
   # if the node contains a legal value. Throws exception and invalidates if not.
   def self.within(array, node)

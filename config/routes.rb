@@ -3,14 +3,12 @@ FarmBot::Application.routes.draw do
   namespace :api, defaults: {format: :json}, constraints: { format: 'json' } do
     resources :tool_bays,     only: [:index]
     resources :images,        only: [:create, :destroy, :show, :index]
-    resources :plants,        only: [:create, :destroy, :index, :update]
     resources :regimens,      only: [:create, :destroy, :index, :update]
     resources :peripherals,   only: [:create, :destroy, :index, :update]
     resources :corpuses,      only: [:index, :show]
     resources :logs,          only: [:index, :create, :destroy]
     resources :sequences,     only: [:create, :update, :destroy, :index, :show]
     resources :farm_events,   only: [:create, :update, :destroy, :index]
-    resources :tool_slots,    only: [:create, :show, :index, :destroy, :update]
     resources :tools,         only: [:create, :show, :index, :destroy, :update]
     resources :points,        only: [:create, :show, :index, :destroy, :update] do
         post :search, on: :collection
@@ -22,11 +20,14 @@ FarmBot::Application.routes.draw do
     resources :password_resets, only: [:create, :update]
     put "/password_resets"     => "password_resets#update", as: :whatever
     put "/users/verify/:token" => "users#verify",           as: :users_verify
-      # Make life easier on API users by not adding special rules for singular
+  # Make life easier on API users by not adding special rules for singular
   # resources. Otherwise methods like `save()` on the frontend would need to
   # keep track of an `isSingular` property, which I would prefer to not do.
   put   "/device/:id" => "devices#update", as: :put_device_redirect
   patch "/device/:id" => "devices#update", as: :patch_device_redirect
+  put   "/users/:id"  => "users#update",   as: :put_users_redirect
+  patch "/users/:id"  => "users#update",   as: :patch_users_redirect
+
   end
 
   devise_for :users

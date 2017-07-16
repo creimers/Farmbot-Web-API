@@ -11,10 +11,8 @@ describe Api::PasswordResetsController do
       old_email_count = ActionMailer::Base.deliveries.length
       post :create, params: params
       expect(response.status).to eq(200)
-      sleep 0.75 # Mail deliveries occur in background thread. TODO: Fix this
-                # `sleep` nonsense the right way.
       expect(ActionMailer::Base.deliveries.length).to be > old_email_count
-      message = ActionMailer::Base.deliveries.last.to_s
+      message = last_email.to_s
       expect(message).to include("password reset")
     end
 
@@ -31,6 +29,21 @@ describe Api::PasswordResetsController do
       expect(response.status).to eq(200)
       expect(json.keys).to include(:token)
       expect(json.keys).to include(:user)
+    end
+
+    it 'handles token expiration' do
+      token  = PasswordResetToken
+                 .issue_to(user, {exp: Time.now.yesterday})
+                 .encoded
+
+      params = { password:              "xpassword123",
+                 password_confirmation: "xpassword123",
+                 id:                    token }
+
+      put :update, params: params
+      expect(response.status).to eq(422)
+      expect(user.reload.valid_password?(params[:password])).to eq(false)
+      expect(json.to_json).to include(PasswordResets::Update::OLD_TOKEN)
     end
   end
 end

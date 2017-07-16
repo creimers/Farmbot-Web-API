@@ -1,6 +1,5 @@
+# THIS SHOULD NOT EXIST.
 class ToolBay < ApplicationRecord
-# HOPEFULLY THIS CAN GO AWAY!!
-#
-#  DONT DELETE THIS FILE UNTIL THE REFACTOR IS FINISHED ELSE YOU CAN'T
-#  MIGRATE PROPERLY.
+  belongs_to :device
+  has_many :tool_slots
 end

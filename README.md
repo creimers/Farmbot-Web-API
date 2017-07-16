@@ -1,77 +1,72 @@
 [![Code Climate](https://codeclimate.com/github/FarmBot/farmbot-web-app/badges/gpa.svg)](https://codeclimate.com/github/FarmBot/farmbot-web-app)
 [![Test Coverage](https://codeclimate.com/github/FarmBot/farmbot-web-app/badges/coverage.svg)](https://codeclimate.com/github/FarmBot/farmbot-web-app)
 
-# Do I need this?
+# Q: Do I need this?
 
 This repository is intended for *software developers* who wish to modify the [Farmbot Web App](http://my.farmbot.io/). **If you are not a developer**, you are highly encouraged to use [the publicly available web app](http://my.farmbot.io/). Running a server is a non-trivial task which will require an intermediate background in Ruby, SQL and Linux system administration.
 
 If you are a developer interested in contributing or would like to provision your own server, you are in the right place.
 
-# Farmbot Web API
+# Q: What is the Farmbot Web App?
 
-**[LATEST STABLE VERSION IS HERE](https://github.com/FarmBot/Farmbot-Web-API/releases)** :star: :star: :star:
-
-This Repo is the RESTful JSON API for Farmbot. This includes things like storage of user data, plant data, authorization tokens and a variety of other resources.
+This repo contains the web based user interface and RESTful JSON API for Farmbot. This includes things like storage of user data, plant data, authorization tokens and a variety of other resources.
 
 The key responsibility of the API is *information and permissions management*. This should not be confused with device control, which is done via [MQTT](https://github.com/FarmBot/mqtt-gateway).
 
-# API Documentation
+# Q: Can I see some example API requests?
 
-For a list of example API requests and responses, see our [reference documentation](https://gist.github.com/RickCarlino/5f3d885e88d6e15b2ffe1763cc2a750a).
+For a list of example API requests and responses, see our [reference documentation](https://gist.github.com/RickCarlino/10db2df375d717e9efdd3c2d9d8932af). If you wish to write an add-on application that uses the FarmBot API, please let us know in an issue. We are happy to answer any specific questions you may have.
 
-# Developer Setup
+# Q: How do I Setup an instance locally?
 
 ## Prerequisites
 
-Your machine will need the following:
+You will need the following:
 
- 0. [Ruby 2.3.3](http://rvm.io/rvm/install)
- 1. [ImageMagick](https://www.imagemagick.org/script/index.php) (`brew install imagemagick` or `sudo apt-get install imagemagick`)
+ 0. A Linux or Mac based machine. We do not support windows at this time.
+ 0. [Ruby 2.4.1](http://rvm.io/rvm/install)
+ 0. [ImageMagick](https://www.imagemagick.org/script/index.php) (`brew install imagemagick` (Mac) or `sudo apt-get install imagemagick` (Ubuntu))
+ 0. [Node JS > v6](https://nodejs.org/en/download/)
+ 0. [`libpq-dev` and `postgresql`](http://stackoverflow.com/questions/6040583/cant-find-the-libpq-fe-h-header-when-trying-to-install-pg-gem/6040822#6040822)
 
 ### Setup
- 0. `git clone https://github.com/FarmBot/Farmbot-Web-API`
- 0. `cd Farmbot-Web-API`
- 0. [Install `libpq-dev` and `postgresql`](http://stackoverflow.com/questions/6040583/cant-find-the-libpq-fe-h-header-when-trying-to-install-pg-gem/6040822#6040822)
+
+ 0. `git clone https://github.com/FarmBot/Farmbot-Web-App`
+ 0. `cd Farmbot-Web-App`
  0. `bundle install`
- 0. Copy `config/database.example.yml` to `config/database.yml`. In GNU/Linux or Mac: `mv config/database.example.yml config/database.yml`. **Please read the file and replace the values with real world values.**.
+ 0. `yarn install`
+ 0. **MOST IMPORTANT STEP**. Copy `config/database.example.yml` to `config/database.yml`. In GNU/Linux or Mac: `mv config/database.example.yml config/database.yml`. **Please read the instructions inside the file. Replace the example values provided with real world values.**
  0. Give permission to create a database*
  0. `rake db:create:all db:migrate db:seed`
  0. (optional) Verify installation with `RAILS_ENV=test rake db:create db:migrate && rspec spec`.
- 0. `MQTT_HOST=your_mqtt_server_domain rails s`
- 0. (REQUIRES NODE JS > v6) Run `./install_frontend.sh` to install the latest frontend app. You may also run the frontend on a seperate server. See [frontend repository](https://github.com/FarmBot/farmbot-web-frontend) for details.
- 0. Open [localhost:3000](http://localhost:3000).
- 0. [Raise an issue](https://github.com/FarmBot/Farmbot-Web-API/issues/new?title=Installation%20Failure) if you hit problems with any of these steps.
+ 0. Start server with `npm run dev`. Make sure you set an `MQTT_HOST` entry in `application.yml` pointing to the IP address or domain of the (soon-to-be-installed) MQTT server. You will need to set that up next.
+ 0. Now that the API server is running, [provision an MQTT server](https://github.com/FarmBot/mqtt-gateway).
+ 0. Open [localhost:8080](http://localhost:8080). The application is now ready for use.
+ 0. [Raise an issue](https://github.com/FarmBot/Farmbot-Web-App/issues/new?title=Installation%20Failure) if you hit problems with any of these steps. *We can't fix issues we don't know about.*
 
 \*Give permission to `user` to create database:
 ```
-sudo -u postgres createuser user
 sudo -u postgres psql
-ALTER USER "user" WITH SUPERUSER;
+CREATE USER "user" WITH SUPERUSER;
 ```
 
-# Provisioning Your Own with Dokku
+# Q: Is Dokku / Docker supported?
 
-Please see `deployment.md`.
+Dokku (a Docker management system) is partially supported. Pull requests welcome. Please see `deployment.md` for more information.
 
 # Config Settings (important)
 
-Your server won't run without setting ENV variables first.
+We try our best to follow the [12 Factor Methodology](https://12factor.net/). Part of that means using ENV variables as a means of [storing configuration](https://12factor.net/config). **Your server won't run without setting ENV variables first**.
 
 You can accomplish this by setting the ENV variables directly from your shell / server management tool or by writing an `application.yml` file.
 
 See `config/application.example.yml` for a list of all the variables that must be set.
 
-**Encryption keys**: Encryption keys will be autogenerated if not present. They can be reset using `rake keys:generate`. If `ENV['RSA_KEY']` is set, it will be used in place of the `*.pem` files. Useful for environments like Heroku, where file system access is not allowed.
+**Encryption keys**: Encryption keys will be auto-generated if not present. They can be reset using `rake keys:generate`. If `ENV['RSA_KEY']` is set, it will be used in place of the `*.pem` files. Useful for environments like Heroku, where file system access is not allowed.
 
 **We can't fix issues we don't know about.** Please submit an issue if you are having trouble installing on your local machine.
 
-## Running Specs
-
-Please run them before submitting pull requests.
-
- * `bundle exec rspec spec`
-
-# Generating an API token
+# Q: How can I Generate an API token?
 
 You must pass a `token` string into most HTTP requests under the `Authorization: ` request header.
 
@@ -129,4 +124,4 @@ $.ajax({
 
 # Want to Help?
 
-[Low Hanging Fruit](https://github.com/FarmBot/Farmbot-Web-API/search?utf8=%E2%9C%93&q=todo). [Raise an issue](https://github.com/FarmBot/Farmbot-Web-API/issues/new?title=Question%20about%20a%20TODO) if you have any questions.
+[Low Hanging Fruit](https://github.com/FarmBot/Farmbot-Web-App/search?utf8=%E2%9C%93&q=todo). [Raise an issue](https://github.com/FarmBot/Farmbot-Web-App/issues/new?title=Question%20about%20a%20TODO) if you have any questions.
